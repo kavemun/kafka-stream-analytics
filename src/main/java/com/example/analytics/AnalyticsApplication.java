@@ -94,7 +94,7 @@ public class AnalyticsApplication {
 
 		private final Log log = LogFactory.getLog(getClass());
 		@StreamListener
-		public void process(@Input((AnalyticsBinding.PAGE_COUNT_IN)) KTable<String, Long> counts) {
+		public void process1(@Input((AnalyticsBinding.PAGE_COUNT_IN)) KTable<String, Long> counts) {
 			counts
 					.toStream()
 					.foreach((key,value) -> log.info(key + "=" + value));
