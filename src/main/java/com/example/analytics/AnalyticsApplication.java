@@ -29,16 +29,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-@SpringBootApplication
 @EnableBinding(AnalyticsBinding.class)
+@SpringBootApplication
 public class AnalyticsApplication {
 
 	@Component
-	public static class PageViewEventSource implements ApplicationRunner {
+	public static class PageEventSource implements ApplicationRunner {
 
 		private final MessageChannel pageViewsOut;
 		private final Log log = LogFactory.getLog(getClass());
-		public PageViewEventSource( AnalyticsBinding binding) {
+		public PageEventSource( AnalyticsBinding binding) {
 			this.pageViewsOut = binding.pageViewsOut();
 		}
 
@@ -94,7 +94,7 @@ public class AnalyticsApplication {
 
 		private final Log log = LogFactory.getLog(getClass());
 		@StreamListener
-		public void process1(@Input((AnalyticsBinding.PAGE_COUNT_IN)) KTable<String, Long> counts) {
+		public void processStream(@Input((AnalyticsBinding.PAGE_COUNT_IN)) KTable<String, Long> counts) {
 			counts
 					.toStream()
 					.foreach((key,value) -> log.info(key + "=" + value));
