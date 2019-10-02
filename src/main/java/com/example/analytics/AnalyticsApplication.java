@@ -1,11 +1,8 @@
 package com.example.analytics;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.*;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -22,12 +19,9 @@ import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 @EnableBinding(AnalyticsBinding.class)
 @SpringBootApplication
@@ -51,7 +45,7 @@ public class AnalyticsApplication {
 			Runnable runnable = () -> {
 				String rPage = pages.get(new Random().nextInt(pages.size()));
 				String rName = names.get(new Random().nextInt(names.size()));
-				PageViewEvent pageViewEvent = new PageViewEvent(rName, rPage, Math.random() > 5 ? 10: 1000);
+				PageViewEvent pageViewEvent = new PageViewEvent(rName, rPage, (int)Math.random()*100, Math.random() > 5 ? 10: 1000);
 				Message<PageViewEvent> message = MessageBuilder
 						.withPayload(pageViewEvent)
 						.setHeader(KafkaHeaders.MESSAGE_KEY, pageViewEvent.getUserId().getBytes())
@@ -74,17 +68,20 @@ public class AnalyticsApplication {
 		private final Log log = LogFactory.getLog(getClass());
 
 		@StreamListener
-		@SendTo(AnalyticsBinding.PAGE_COUNT_OUT)
-		public KStream<String, Long> process(
-				@Input(AnalyticsBinding.PAGE_VIEWS_IN) KStream<String, PageViewEvent> events) {
+		@SendTo(AnalyticsBinding.PRODUCER_OUT)
+		public KStream<String, PageViewEvent> processEvent(
+				@Input(AnalyticsBinding.CONSUMER_VIEWS_IN) KStream<String, PageViewEvent> events) {
 
-			return events
-					.filter((key, value) -> value.getDuration() > 10)
-					.map((key, value) -> new KeyValue(value.getPage(), "0"))
-					.groupByKey()
-//					.windowedBy(TimeWindows.of(1000 * 60))
-					.count(Materialized.as(AnalyticsBinding.PAGE_COUNT_MV))
-					.toStream();
+//			return events
+//					.filter((key, value) -> value.getDuration() > 10)
+//					.mapValues((key, value) -> new KeyValue(value.getPage(), "0"))
+//					.groupByKey()
+////					.windowedBy(TimeWindows.of(1000 * 60))
+//					.count(Materialized.as(AnalyticsBinding.PAGE_COUNT_MV))
+//					.toStream();
+
+			return events;
+
 		}
 
 	}
@@ -94,10 +91,11 @@ public class AnalyticsApplication {
 
 		private final Log log = LogFactory.getLog(getClass());
 		@StreamListener
-		public void processStream(@Input((AnalyticsBinding.PAGE_COUNT_IN)) KTable<String, Long> counts) {
-			counts
-					.toStream()
-					.foreach((key,value) -> log.info(key + "=" + value));
+		public void process(@Input((AnalyticsBinding.CONSUMER_IN)) KStream<String, PageViewEvent> event) {
+
+//			event
+//					.foreach((key,value) -> log.info("Test"));
+
 		}
 	}
 
@@ -110,22 +108,22 @@ public class AnalyticsApplication {
 interface AnalyticsBinding {
 
 	String PAGE_VIEWS_OUT = "pvout";
-	String PAGE_VIEWS_IN = "pvin";
+	String CONSUMER_VIEWS_IN = "pvin";
 	String PAGE_COUNT_MV = "pcmv";
-	String PAGE_COUNT_OUT = "pcout" ;
-	String PAGE_COUNT_IN = "pcin" ;
+	String PRODUCER_OUT = "pcout" ;
+	String CONSUMER_IN = "pcin" ;
 
-	@Input(PAGE_VIEWS_IN)
-	KStream<String, PageViewEvent> pageViewsIn();
+	@Input(CONSUMER_VIEWS_IN)
+	KStream<String, PageViewEvent> consumerViewsIn();
 
 	@Output(PAGE_VIEWS_OUT)
 	MessageChannel pageViewsOut();
 
-	@Output(PAGE_COUNT_OUT)
-	KStream<String, Long> pageCountOut();
+	@Output(PRODUCER_OUT)
+	KStream<String, PageViewEvent> producerOut();
 
-	@Input(PAGE_COUNT_IN)
-	KTable<String, Long> pageCountIn();
+	@Input(CONSUMER_IN)
+	KStream<String, PageViewEvent> consumerIn();
 
 
 
@@ -134,7 +132,71 @@ interface AnalyticsBinding {
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 class PageViewEvent {
 	private String userId, page;
+	private int randNum;
 	private long duration;
 }
+
+//
+//public class PageEventSerializer implements Serializer<PageViewEvent> {
+//
+//	private final ObjectMapper objectMapper = new ObjectMapper();
+//
+//	@Override
+//	public void configure(Map<String, ?> configs, boolean isKey) {
+//
+//	}
+//
+//	@Override
+//	public byte[] serialize(String topic, PageViewEvent data) {
+//
+//		if (Objects.isNull(data)) {
+//			return null;
+//		}
+//		try {
+//			return objectMapper.writeValueAsBytes(data);
+//		} catch (Exception e) {
+//			throw new SerializationException("Error serializing message", e);
+//		}
+//	}
+//
+//	@Override
+//	public void close() {
+//
+//	}
+//}
+//
+//public class PageEventDeserializer implements Deserializer<PageViewEvent> {
+//
+//	private ObjectMapper objectMapper = new ObjectMapper();
+//
+//	@Override
+//	public void configure(Map<String, ?> configs, boolean isKey) {
+//
+//	}
+//
+//	@Override
+//	public PageViewEvent deserialize(String topic, byte[] bytes) {
+//		if (Objects.isNull(bytes)) {
+//			return null;
+//		}
+//
+//		PageViewEvent data;
+//		try {
+//			data = objectMapper.treeToValue(objectMapper.readTree(bytes), PageViewEvent.class);
+//		} catch (Exception e) {
+//			throw new SerializationException(e);
+//		}
+//
+//		return data;
+//	}
+//
+//	@Override
+//	public void close() {
+//
+//	}
+//}
+//
+//
